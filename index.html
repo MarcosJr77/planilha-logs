@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recebimento 19</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- SheetJS for Excel Export/Import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      /* Spreadsheet table styles */
+      .spreadsheet-table th,
+      .spreadsheet-table td {
+        border: 1px solid #cbd5e1;
+        outline: none;
+        user-select: text;
+        position: relative;
+      }
+      .spreadsheet-table td:focus {
+        outline: 2px solid #2563eb;
+        background-color: #eff6ff !important;
+        z-index: 10;
+      }
+      .header-blue {
+        background-color: #bae6fd;
+        color: #0369a1;
+        font-weight: 600;
+      }
+      /* Resizer handle for columns */
+      .col-resizer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 5px;
+        height: 100%;
+        cursor: col-resize;
+        z-index: 30;
+      }
+      .col-resizer:hover {
+        background-color: #3b82f6;
+      }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden"
+  >
+    <!-- Top Header Bar -->
+    <header
+      class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm z-20"
+    >
+      <div class="flex items-center space-x-3">
+        <div class="bg-emerald-600 text-white p-2 rounded-lg shadow">
+          <i class="fa-solid fa-file-excel text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900 tracking-tight">Rec</h1>
+          <p class="text-xs text-slate-500">
+            Planilha Interativa de Controle Logístico
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button
+          onclick="exportToExcel()"
+          class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center space-x-2"
+        >
+          <i class="fa-solid fa-file-excel"></i>
+          <span>Exportar Excel</span>
+        </button>
+        <label
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center space-x-2 cursor-pointer"
+        >
+          <i class="fa-solid fa-file-import"></i>
+          <span>Importar Excel</span>
+          <input
+            type="file"
+            id="importFile"
+            accept=".xlsx, .xls, .csv"
+            class="hidden"
+            onchange="importFromExcel(event)"
+          />
+        </label>
+        <button
+          onclick="clearSheet()"
+          class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1"
+          title="Limpar Dados"
+        >
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Excel-like Toolbar -->
+    <div
+      class="bg-slate-50 border-b border-slate-200 px-4 py-2 flex flex-wrap items-center gap-2 text-sm z-10 shadow-inner"
+    >
+      <!-- Row Actions -->
+      <div
+        class="flex items-center space-x-1 bg-white border border-slate-200 rounded-md p-1 shadow-xs"
+      >
+        <button
+          onclick="addRow()"
+          class="px-2.5 py-1.5 hover:bg-slate-100 rounded text-slate-700 font-medium flex items-center space-x-1 text-xs"
+          title="Adicionar Linha Abaixo"
+        >
+          <i class="fa-solid fa-plus text-emerald-600"></i>
+          <span>Linha</span>
+        </button>
+        <button
+          onclick="deleteRow()"
+          class="px-2.5 py-1.5 hover:bg-slate-100 rounded text-slate-700 font-medium flex items-center space-x-1 text-xs"
+          title="Excluir Linha Selecionada"
+        >
+          <i class="fa-solid fa-minus text-rose-600"></i>
+          <span>Del Linha</span>
+        </button>
+      </div>
+
+      <!-- Column Actions -->
+      <div
+        class="flex items-center space-x-1 bg-white border border-slate-200 rounded-md p-1 shadow-xs"
+      >
+        <button
+          onclick="addColumn()"
+          class="px-2.5 py-1.5 hover:bg-slate-100 rounded text-slate-700 font-medium flex items-center space-x-1 text-xs"
+          title="Adicionar Coluna"
+        >
+          <i class="fa-solid fa-plus text-emerald-600"></i>
+          <span>Coluna</span>
+        </button>
+        <button
+          onclick="deleteColumn()"
+          class="px-2.5 py-1.5 hover:bg-slate-100 rounded text-slate-700 font-medium flex items-center space-x-1 text-xs"
+          title="Excluir Última Coluna"
+        >
+          <i class="fa-solid fa-minus text-rose-600"></i>
+          <span>Del Coluna</span>
+        </button>
+      </div>
+
+      <div class="h-5 w-px bg-slate-300 mx-1"></div>
+
+      <!-- Formatting Buttons -->
+      <div
+        class="flex items-center space-x-1 bg-white border border-slate-200 rounded-md p-1 shadow-xs"
+      >
+        <button
+          onclick="formatText('bold')"
+          class="w-8 h-8 hover:bg-slate-100 rounded text-slate-700 font-bold flex items-center justify-center transition"
+          title="Negrito"
+        >
+          <i class="fa-solid fa-bold"></i>
+        </button>
+        <button
+          onclick="formatText('italic')"
+          class="w-8 h-8 hover:bg-slate-100 rounded text-slate-700 italic flex items-center justify-center transition"
+          title="Itálico"
+        >
+          <i class="fa-solid fa-italic"></i>
+        </button>
+        <button
+          onclick="formatText('underline')"
+          class="w-8 h-8 hover:bg-slate-100 rounded text-slate-700 underline flex items-center justify-center transition"
+          title="Sublinhado"
+        >
+          <i class="fa-solid fa-underline"></i>
+        </button>
+      </div>
+
+      <!-- Colors: Background and Text -->
+      <div
+        class="flex items-center space-x-2 bg-white border border-slate-200 rounded-md p-1 px-2 shadow-xs"
+      >
+        <div class="flex items-center space-x-1" title="Cor de Fundo da Célula">
+          <i class="fa-solid fa-fill-drip text-slate-500 text-xs"></i>
+          <input
+            type="color"
+            id="bgColorPicker"
+            value="#ffffff"
+            onchange="changeCellBgColor(this.value)"
+            class="w-6 h-6 border-0 cursor-pointer bg-transparent rounded"
+          />
+        </div>
+        <div class="h-4 w-px bg-slate-200"></div>
+        <div class="flex items-center space-x-1" title="Cor da Letra">
+          <i class="fa-solid fa-font text-slate-500 text-xs"></i>
+          <input
+            type="color"
+            id="textColorPicker"
+            value="#1e293b"
+            onchange="changeCellTextColor(this.value)"
+            class="w-6 h-6 border-0 cursor-pointer bg-transparent rounded"
+          />
+        </div>
+      </div>
+
+      <!-- Cell / Row / Column Size Adjusters -->
+      <div
+        class="flex items-center space-x-1 bg-white border border-slate-200 rounded-md p-1 shadow-xs"
+      >
+        <button
+          onclick="adjustColumnWidth()"
+          class="px-2.5 py-1.5 hover:bg-slate-100 rounded text-slate-700 font-medium flex items-center space-x-1 text-xs"
+          title="Ajustar Largura da Coluna"
+        >
+          <i class="fa-solid fa-arrows-split-up-and-left text-blue-600"></i>
+          <span>Largura</span>
+        </button>
+        <button
+          onclick="adjustRowHeight()"
+          class="px-2.5 py-1.5 hover:bg-slate-100 rounded text-slate-700 font-medium flex items-center space-x-1 text-xs"
+          title="Ajustar Altura da Linha"
+        >
+          <i class="fa-solid fa-arrows-up-down text-blue-600"></i>
+          <span>Altura</span>
+        </button>
+      </div>
+
+      <!-- Alignment -->
+      <div
+        class="flex items-center space-x-1 bg-white border border-slate-200 rounded-md p-1 shadow-xs"
+      >
+        <button
+          onclick="alignText('left')"
+          class="w-8 h-8 hover:bg-slate-100 rounded text-slate-700 flex items-center justify-center transition"
+          title="Alinhar à Esquerda"
+        >
+          <i class="fa-solid fa-align-left"></i>
+        </button>
+        <button
+          onclick="alignText('center')"
+          class="w-8 h-8 hover:bg-slate-100 rounded text-slate-700 flex items-center justify-center transition"
+          title="Centralizar"
+        >
+          <i class="fa-solid fa-align-center"></i>
+        </button>
+        <button
+          onclick="alignText('right')"
+          class="w-8 h-8 hover:bg-slate-100 rounded text-slate-700 flex items-center justify-center transition"
+          title="Alinhar à Direita"
+        >
+          <i class="fa-solid fa-align-right"></i>
+        </button>
+      </div>
+
+      <!-- Merge Cells -->
+      <div
+        class="flex items-center space-x-1 bg-white border border-slate-200 rounded-md p-1 shadow-xs"
+      >
+        <button
+          onclick="mergeCells()"
+          class="px-3 py-1.5 hover:bg-slate-100 rounded text-slate-700 font-medium flex items-center space-x-1 text-xs transition"
+          title="Mesclar Células Selecionadas"
+        >
+          <i class="fa-solid fa-object-ungroup text-indigo-600"></i>
+          <span>Mesclar</span>
+        </button>
+      </div>
+
+      <!-- Status / Counter -->
+      <div
+        class="ml-auto text-xs text-slate-500 font-medium flex items-center space-x-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200"
+      >
+        <span
+          >Linhas:
+          <strong id="rowCount" class="text-slate-700">30</strong></span
+        >
+        <span
+          >Colunas:
+          <strong id="colCount" class="text-slate-700">26</strong></span
+        >
+      </div>
+    </div>
+
+    <!-- Spreadsheet Main Area -->
+    <div class="flex-1 overflow-auto bg-white relative" id="sheetContainer">
+      <table
+        id="spreadsheet"
+        class="spreadsheet-table border-collapse w-max text-xs select-none"
+      >
+        <thead>
+          <tr id="headerRow" class="text-center">
+            <th
+              class="p-2 w-12 bg-slate-200 text-slate-600 font-bold sticky left-0 z-30 border border-slate-300"
+            >
+              #
+            </th>
+            <!-- 26 Requested Fields with Light Blue Header Background -->
+          </tr>
+        </thead>
+        <tbody id="sheetBody">
+          <!-- 30 Initial Rows generated via JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Application Logic Script -->
+    <script>
+      const defaultHeaders = [
+        "N°",
+        "Turno",
+        "Horario Entrada",
+        "Horario Saída",
+        "Tempo > 1h",
+        "Cod.Desvio",
+        "Obs",
+        "Placa",
+        "CVA",
+        "Código",
+        "Fornecedor",
+        "Qte",
+        "Código",
+        "Qte",
+        "Código",
+        "Qte",
+        "Código",
+        "Qte",
+        "Código",
+        "NF remessa",
+        "KD",
+        "Devolução",
+        "Nº Documento",
+        "Dupla Conf. Operador",
+        "Qtd. de emb. enviada",
+        "Responsavel pela Dupla. Conf.",
+      ];
+
+      let activeCell = null;
+
+      window.addEventListener("DOMContentLoaded", () => {
+        buildHeaders();
+        buildRows(30);
+        updateCounters();
+      });
+
+      function buildHeaders() {
+        const headerRow = document.getElementById("headerRow");
+        headerRow.innerHTML =
+          '<th class="p-2 w-12 bg-slate-200 text-slate-600 font-bold sticky left-0 z-30 border border-slate-300 select-none">#</th>';
+
+        defaultHeaders.forEach((header, index) => {
+          const th = document.createElement("th");
+          th.className =
+            "p-2.5 header-blue text-center border border-slate-300 min-w-[130px] max-w-[300px] truncate cursor-pointer hover:bg-sky-200 transition relative";
+          th.innerText = header;
+          th.contentEditable = "true";
+          th.dataset.colIndex = index + 1;
+
+          // Column resize handle
+          const resizer = document.createElement("div");
+          resizer.className = "col-resizer";
+          resizer.addEventListener("mousedown", initColumnResize);
+          th.appendChild(resizer);
+
+          headerRow.appendChild(th);
+        });
+      }
+
+      function buildRows(numRows) {
+        const sheetBody = document.getElementById("sheetBody");
+        sheetBody.innerHTML = "";
+
+        for (let i = 1; i <= numRows; i++) {
+          const tr = document.createElement("tr");
+          tr.dataset.rowIndex = i;
+
+          const thRow = document.createElement("th");
+          thRow.className =
+            "p-2 w-12 bg-slate-100 text-slate-600 font-medium text-center sticky left-0 z-20 border border-slate-300 select-none";
+          thRow.innerText = i;
+          tr.appendChild(thRow);
+
+          for (let j = 1; j <= defaultHeaders.length; j++) {
+            const td = document.createElement("td");
+            td.className =
+              "p-2 bg-white min-w-[130px] h-9 text-slate-800 border border-slate-200 outline-none";
+            td.contentEditable = "true";
+            td.dataset.row = i;
+            td.dataset.col = j;
+
+            td.addEventListener("focus", (e) => {
+              activeCell = e.target;
+              syncColorPickers();
+            });
+            td.addEventListener("keydown", (e) =>
+              handleKeyboardNavigation(e, i, j),
+            );
+
+            tr.appendChild(td);
+          }
+          sheetBody.appendChild(tr);
+        }
+      }
+
+      function updateCounters() {
+        const rowCount = document.querySelectorAll("#sheetBody tr").length;
+        const colCount = defaultHeaders.length;
+        document.getElementById("rowCount").innerText = rowCount;
+        document.getElementById("colCount").innerText = colCount;
+      }
+
+      function syncColorPickers() {
+        if (!activeCell) return;
+        // Get computed or inline background and text color
+        const compStyle = window.getComputedStyle(activeCell);
+        // Fallback or exact hex conversion can be handled by browser color inputs
+        if (activeCell.style.backgroundColor) {
+          document.getElementById("bgColorPicker").value = rgbToHex(
+            activeCell.style.backgroundColor,
+          );
+        }
+        if (activeCell.style.color) {
+          document.getElementById("textColorPicker").value = rgbToHex(
+            activeCell.style.color,
+          );
+        }
+      }
+
+      function rgbToHex(rgb) {
+        if (!rgb || rgb.startsWith("#")) return rgb;
+        const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        if (!match) return "#ffffff";
+        return (
+          "#" +
+          (
+            (1 << 24) +
+            (parseInt(match[1]) << 16) +
+            (parseInt(match[2]) << 8) +
+            parseInt(match[3])
+          )
+            .toString(16)
+            .slice(1)
+        );
+      }
+
+      // Custom Cell Size Adjusters
+      function adjustColumnWidth() {
+        if (!activeCell) {
+          alert("Selecione uma célula na coluna que deseja ajustar.");
+          return;
+        }
+        const colIndex = activeCell.dataset.col;
+        const newWidth = prompt(
+          "Digite a largura da coluna em pixels (ex: 150):",
+          "150",
+        );
+        if (!newWidth || isNaN(newWidth)) return;
+
+        const cellsInCol = document.querySelectorAll(
+          `[data-col='${colIndex}']`,
+        );
+        cellsInCol.forEach((cell) => {
+          cell.style.minWidth = newWidth + "px";
+          cell.style.width = newWidth + "px";
+        });
+        const thHead = document.querySelector(
+          `#headerRow th:nth-child(${parseInt(colIndex) + 1})`,
+        );
+        if (thHead) {
+          thHead.style.minWidth = newWidth + "px";
+          thHead.style.width = newWidth + "px";
+        }
+      }
+
+      function adjustRowHeight() {
+        if (!activeCell) {
+          alert("Selecione uma célula na linha que deseja ajustar.");
+          return;
+        }
+        const rowIndex = activeCell.dataset.row;
+        const newHeight = prompt(
+          "Digite a altura da linha em pixels (ex: 45):",
+          "45",
+        );
+        if (!newHeight || isNaN(newHeight)) return;
+
+        const row = document.querySelector(
+          `#sheetBody tr[data-row='${rowIndex}']`,
+        );
+        if (row) {
+          const cells = row.querySelectorAll("td, th");
+          cells.forEach((cell) => {
+            cell.style.height = newHeight + "px";
+          });
+        }
+      }
+
+      // Column Resizing via Dragging
+      function initColumnResize(e) {
+        e.stopPropagation();
+        const th = e.target.parentElement;
+        const startX = e.clientX;
+        const startWidth = th.offsetWidth;
+        const colIndex = th.dataset.colIndex;
+
+        function onMouseMove(moveEvent) {
+          const diff = moveEvent.clientX - startX;
+          const newWidth = Math.max(60, startWidth + diff);
+
+          const cells = document.querySelectorAll(`[data-col='${colIndex}']`);
+          cells.forEach((c) => {
+            c.style.minWidth = newWidth + "px";
+            c.style.width = newWidth + "px";
+          });
+          th.style.minWidth = newWidth + "px";
+          th.style.width = newWidth + "px";
+        }
+
+        function onMouseUp() {
+          window.removeEventListener("mousemove", onMouseMove);
+          window.removeEventListener("mouseup", onMouseUp);
+        }
+
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+      }
+
+      // Color Pickers Action
+      function changeCellBgColor(color) {
+        if (activeCell) {
+          activeCell.style.backgroundColor = color;
+          activeCell.focus();
+        }
+      }
+
+      function changeCellTextColor(color) {
+        if (activeCell) {
+          activeCell.style.color = color;
+          activeCell.focus();
+        }
+      }
+
+      // Add Row Function
+      function addRow() {
+        const sheetBody = document.getElementById("sheetBody");
+        const rowCount = sheetBody.rows.length + 1;
+        const tr = document.createElement("tr");
+        tr.dataset.rowIndex = rowCount;
+
+        const thRow = document.createElement("th");
+        thRow.className =
+          "p-2 w-12 bg-slate-100 text-slate-600 font-medium text-center sticky left-0 z-20 border border-slate-300 select-none";
+        thRow.innerText = rowCount;
+        tr.appendChild(thRow);
+
+        for (let j = 1; j <= defaultHeaders.length; j++) {
+          const td = document.createElement("td");
+          td.className =
+            "p-2 bg-white min-w-[130px] h-9 text-slate-800 border border-slate-200 outline-none";
+          td.contentEditable = "true";
+          td.dataset.row = rowCount;
+          td.dataset.col = j;
+          td.addEventListener("focus", (e) => {
+            activeCell = e.target;
+            syncColorPickers();
+          });
+          td.addEventListener("keydown", (e) =>
+            handleKeyboardNavigation(e, rowCount, j),
+          );
+          tr.appendChild(td);
+        }
+        sheetBody.appendChild(tr);
+        updateCounters();
+      }
+
+      function deleteRow() {
+        const sheetBody = document.getElementById("sheetBody");
+        if (sheetBody.rows.length > 1) {
+          sheetBody.deleteRow(sheetBody.rows.length - 1);
+          updateCounters();
+        }
+      }
+
+      function addColumn() {
+        const colName = prompt(
+          "Digite o nome da nova coluna:",
+          `Campo ${defaultHeaders.length + 1}`,
+        );
+        if (!colName) return;
+
+        defaultHeaders.push(colName);
+        const headerRow = document.getElementById("headerRow");
+        const th = document.createElement("th");
+        th.className =
+          "p-2.5 header-blue text-center border border-slate-300 min-w-[130px] max-w-[300px] truncate cursor-pointer hover:bg-sky-200 transition relative";
+        th.innerText = colName;
+        th.contentEditable = "true";
+        th.dataset.colIndex = defaultHeaders.length;
+
+        const resizer = document.createElement("div");
+        resizer.className = "col-resizer";
+        resizer.addEventListener("mousedown", initColumnResize);
+        th.appendChild(resizer);
+
+        headerRow.appendChild(th);
+
+        const rows = document.querySelectorAll("#sheetBody tr");
+        rows.forEach((tr, index) => {
+          const td = document.createElement("td");
+          td.className =
+            "p-2 bg-white min-w-[130px] h-9 text-slate-800 border border-slate-200 outline-none";
+          td.contentEditable = "true";
+          td.dataset.row = index + 1;
+          td.dataset.col = defaultHeaders.length;
+          td.addEventListener("focus", (e) => {
+            activeCell = e.target;
+            syncColorPickers();
+          });
+          tr.appendChild(td);
+        });
+        updateCounters();
+      }
+
+      function deleteColumn() {
+        if (defaultHeaders.length <= 1) return;
+        defaultHeaders.pop();
+        const headerRow = document.getElementById("headerRow");
+        headerRow.removeChild(headerRow.lastElementChild);
+
+        const rows = document.querySelectorAll("#sheetBody tr");
+        rows.forEach((tr) => {
+          tr.removeChild(tr.lastElementChild);
+        });
+        updateCounters();
+      }
+
+      function formatText(command) {
+        document.execCommand(command, false, null);
+        if (activeCell) activeCell.focus();
+      }
+
+      function alignText(alignment) {
+        if (activeCell) {
+          activeCell.style.textAlign = alignment;
+          activeCell.focus();
+        }
+      }
+
+      function mergeCells() {
+        if (!activeCell) {
+          alert("Selecione uma célula primeiro.");
+          return;
+        }
+        const colspan = prompt(
+          "Digite o número de colunas a mesclar para a direita:",
+          "2",
+        );
+        const count = parseInt(colspan);
+        if (isNaN(count) || count <= 1) return;
+
+        activeCell.setAttribute("colspan", count);
+        let nextCell = activeCell.nextElementSibling;
+        for (let i = 1; i < count && nextCell; i++) {
+          let temp = nextCell.nextElementSibling;
+          nextCell.style.display = "none";
+          nextCell = temp;
+        }
+        activeCell.focus();
+      }
+
+      function handleKeyboardNavigation(e, row, col) {
+        let targetCell = null;
+        if (e.key === "ArrowRight") {
+          targetCell = document.querySelector(
+            `[data-row='${row}'][data-col='${col + 1}']`,
+          );
+        } else if (e.key === "ArrowLeft") {
+          targetCell = document.querySelector(
+            `[data-row='${row}'][data-col='${col - 1}']`,
+          );
+        } else if (e.key === "ArrowDown") {
+          targetCell = document.querySelector(
+            `[data-row='${row + 1}'][data-col='${col}']`,
+          );
+        } else if (e.key === "ArrowUp") {
+          targetCell = document.querySelector(
+            `[data-row='${row - 1}'][data-col='${col}']`,
+          );
+        }
+        if (targetCell) {
+          e.preventDefault();
+          targetCell.focus();
+        }
+      }
+
+      function clearSheet() {
+        if (confirm("Deseja realmente limpar todos os dados da planilha?")) {
+          const cells = document.querySelectorAll("#sheetBody td");
+          cells.forEach((cell) => {
+            cell.innerText = "";
+            cell.style.textAlign = "left";
+            cell.style.backgroundColor = "";
+            cell.style.color = "";
+            cell.removeAttribute("colspan");
+            cell.style.display = "";
+          });
+        }
+      }
+
+      function exportToExcel() {
+        const table = document.getElementById("spreadsheet");
+        const wb = XLSX.utils.table_to_book(table, { sheet: "Recebimento 19" });
+        XLSX.writeFile(wb, "Recebimento_19.xlsx");
+      }
+
+      function importFromExcel(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          if (jsonData.length > 0) {
+            const sheetBody = document.getElementById("sheetBody");
+            sheetBody.innerHTML = "";
+
+            for (let i = 1; i < jsonData.length; i++) {
+              const rowData = jsonData[i];
+              const tr = document.createElement("tr");
+              tr.dataset.rowIndex = i;
+
+              const thRow = document.createElement("th");
+              thRow.className =
+                "p-2 w-12 bg-slate-100 text-slate-600 font-medium text-center sticky left-0 z-20 border border-slate-300 select-none";
+              thRow.innerText = i;
+              tr.appendChild(thRow);
+
+              for (let j = 1; j <= defaultHeaders.length; j++) {
+                const td = document.createElement("td");
+                td.className =
+                  "p-2 bg-white min-w-[130px] h-9 text-slate-800 border border-slate-200 outline-none";
+                td.contentEditable = "true";
+                td.dataset.row = i;
+                td.dataset.col = j;
+                td.innerText = rowData[j] !== undefined ? rowData[j] : "";
+                td.addEventListener("focus", (e) => {
+                  activeCell = e.target;
+                  syncColorPickers();
+                });
+                td.addEventListener("keydown", (e) =>
+                  handleKeyboardNavigation(e, i, j),
+                );
+                tr.appendChild(td);
+              }
+              sheetBody.appendChild(tr);
+            }
+            updateCounters();
+            alert("Planilha importada com sucesso!");
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    </script>
+  </body>
+</html>
